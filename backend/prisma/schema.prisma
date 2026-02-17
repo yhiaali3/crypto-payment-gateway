@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Merchant {
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  name         String
+  email        String  @unique
+  passwordHash String
+  apiKey       String  @unique
+  apiKeyHash   String? @unique
+  apiSecret    String
+  website      String?
+  webhookUrl   String?
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments    Payment[]
+  webhookLogs WebhookLog[]
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  merchantId        String
+  merchant          Merchant      @relation(fields: [merchantId], references: [id])
+  amount            Float
+  currency          Currency
+  network           Network
+  paymentMethod     PaymentMethod
+  customerReference String
+  status            PaymentStatus
+  paymentAddress    String
+  paymentLink       String
+  expiresAt         DateTime
+  txHash            String?
+  amountReceived    Float?
+  confirmedAt       DateTime?
+  callbackUrl       String?
+  description       String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  webhookLogs       WebhookLog[]
+}
+
+model WebhookLog {
+  id          String    @id @default(cuid())
+  paymentId   String
+  payment     Payment   @relation(fields: [paymentId], references: [id])
+  merchantId  String
+  merchant    Merchant  @relation(fields: [merchantId], references: [id])
+  url         String
+  payload     Json
+  status      Int
+  response    Json?
+  retries     Int       @default(0)
+  nextRetryAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum Currency {
+  USDT
+  BTC
+}
+
+enum Network {
+  TRC20
+  BSC
+  ERC20
+  BITCOIN
+}
+
+enum PaymentMethod {
+  binance_pay
+  usdt_trc20
+  crypto_wallet
+}
+
+enum PaymentStatus {
+  pending
+  confirmed
+  expired
+  failed
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String?
+  merchants Merchant[]
+}

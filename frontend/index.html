@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CPG — Test UI (Single File)</title>
+    <style>
+      :root{--bg:#f7fafc;--card:#fff;--muted:#6b7280;--accent:#0ea5a6;--danger:#ef4444;--success:#10b981;--glass:rgba(2,6,23,0.04)}
+      *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.4;background:var(--bg);color:#0f172a;padding:28px}
+      body.dark{background:#0b1220;color:#e6eef8}
+      body.dark .card{background:#071025;border-color:rgba(255,255,255,0.03)}
+      body.dark input,body.dark textarea,body.dark select{background:transparent;border-color:#1f2937;color:#e6eef8}
+      body.dark .result{background:#071025}
+      .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:20px}
+      header{grid-column:1/-1;margin-bottom:6px}
+      h1{margin:0;font-size:20px}
+      p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+      .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 1px 0 rgba(2,6,23,0.06);border:1px solid var(--glass)}
+      form{display:grid;gap:8px}
+      label{font-size:13px;color:#111827}
+      input[type="text"],input[type="email"],input[type="password"],input[type="number"],select,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e6e9ee;background:transparent;font-size:14px}
+      textarea{min-height:100px;font-family:monospace}
+      .row{display:flex;gap:8px}
+      .row>div{flex:1}
+      .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+      .btn:disabled{opacity:0.6;cursor:not-allowed}
+      .result{background:#f8fafc;border-left:4px solid #e6eef0;padding:12px;border-radius:8px;font-size:13px;color:#0f172a}
+      pre{margin:0;white-space:pre-wrap;word-break:break-word}
+      .muted{color:var(--muted);font-size:13px}
+      .logs{display:flex;flex-direction:column;gap:8px;height:720px;overflow:auto}
+      /* NOL — toast (fixed, does not affect layout) */
+      .nol {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #111;
+        color: #0ff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+        max-width: 300px;
+        z-index: 9999;
+        box-shadow: 0 0 10px rgba(0,0,0,0.4);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        font-size:13px;
+      }
+      .nol.show {
+        opacity: 1;
+      }
+      .log{padding:10px;border-radius:8px;background:transparent;font-size:13px;border:1px solid rgba(15,23,42,0.04)}
+      .log.success{background:rgba(16,185,129,0.06);border-left:4px solid var(--success)}
+      .log.error{background:rgba(239,68,68,0.06);border-left:4px solid var(--danger)}
+      .log.info{background:rgba(14,165,166,0.04);border-left:4px solid var(--accent)}
+      .ts{color:var(--muted);font-size:12px;margin-bottom:6px}
+      .small{font-size:12px;color:var(--muted)}
+      .section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+      .copy{background:#eef2f7;border:1px solid #e6e9ee;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px}
+      .field-actions{display:inline-flex;gap:6px;margin-left:8px}
+      @media (max-width:980px){.wrap{grid-template-columns:1fr}.logs{height:320px}}
+      body.protected { visibility: hidden; }
+      .chart-box { margin-top: 20px; margin-bottom: 30px; padding-top: 18px; }
+      canvas.chart-canvas { display:block; width:100%; height:260px !important; max-height:260px; }
+    </style>
+  </head>
+  <body class="protected">
+    <div class="wrap">
+      <header>
+        <h1>واجهة اختبار بسيطة — Crypto Payment Gateway</h1>
+        <p class="lead">صفحة واحدة (HTML/CSS/JS) للتجربة: إنشاء Merchant، إنشاء Payment، وإرسال Webhook — دون أي مكتبات خارجية.</p>
+      </header>
+
+      <div id="nol-box" class="nol"></div>
+
+      <!-- LEFT: Forms -->
+      <main style="display:grid;gap:18px">
+          <!-- Create Merchant card (shown when user has no merchantId) -->
+          <div id="create-merchant-card" style="display:none;margin-bottom:6px" class="card">
+            <div class="section-title">
+              <strong>لم تُنشئ Merchant بعد</strong>
+              <span class="small">يمكنك إنشاء Merchant هنا</span>
+            </div>
+            <div class="muted" style="margin-bottom:8px">لا يوجد لديك Merchant مرتبط بحسابك بعد. لإنشاء Merchant جديد اضغط الزر أدناه.</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn" id="create-merchant-btn" type="button">إنشاء Merchant</button>
+              <div id="create-merchant-status" class="small muted">&nbsp;</div>
+            </div>
+          </div>
+
+          <!-- Merchant signup removed from dashboard; use signup.html -->
+
+        <!-- Login removed: use login.html instead -->
+
+        <!-- Payment -->
+        <section class="card">
+          <div class="section-title">
+            <strong>1) Create Payment</strong>
+            <span class="small">POST /api/payments (Authorization: ApiKey &lt;apiKey&gt;)</span>
+          </div>
+
+          <form id="payment-form" novalidate>
+            <label>Merchant API Key
+              <input name="apiKey" type="text" placeholder="paste merchant apiKey here" required />
+              <span class="field-actions">
+                <button class="copy" id="use-latest-apikey" type="button">Use Latest</button>
+                <button class="copy" id="copy-apiKey-btn" type="button">Copy</button>
+              </span>
+            </label>
+            <div class="row">
+              <div>
+                <label>amount
+                  <input name="amount" type="number" step="0.01" min="0" placeholder="100" required />
+                </label>
+              </div>
+              <div>
+                <label>currency
+                  <select name="currency">
+                    <option>USDT</option>
+                    <option>BNB</option>
+                    <option>ETH</option>
+                    <option>BTC</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <label>network
+                  <select name="network">
+                    <option>TRC20</option>
+                    <option>BSC</option>
+                    <option>ERC20</option>
+                    <option>BITCOIN</option>
+                  </select>
+                </label>
+              </div>
+              <div>
+                <label>paymentMethod
+                  <select name="paymentMethod">
+                    <option value="usdt_trc20">usdt_trc20</option>
+                    <option value="binance_pay">binance_pay</option>
+                    <option value="crypto_wallet">crypto_wallet</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <label>customerReference
+              <input name="customerReference" type="text" placeholder="order_12345" required />
+            </label>
+
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+              <button class="btn" id="create-payment-btn" type="submit">Create Payment</button>
+              <div class="muted">النتيجة ستُعرض أدناه</div>
+            </div>
+          </form>
+
+          <div id="payment-result" class="result" style="margin-top:12px">لا توجد نتائج بعد.</div>
+        </section>
+
+        <!-- Webhook -->
+        <section class="card">
+          <div class="section-title">
+            <strong>2) Send Webhook</strong>
+            <span class="small">POST /api/webhook/payment</span>
+          </div>
+
+          <form id="webhook-form" novalidate>
+            <div class="row">
+              <div>
+                <label>paymentId
+                  <input name="paymentId" type="text" placeholder="pay_..." required />
+                  <span class="field-actions">
+                    <button class="copy" id="use-latest-paymentid" type="button">Use Latest</button>
+                    <button class="copy" id="copy-paymentId-btn" type="button">Copy</button>
+                  </span>
+                </label>
+              </div>
+              <div>
+                <label>merchantId
+                  <input name="merchantId" type="text" placeholder="mch_..." required />
+                  <span class="field-actions">
+                    <button class="copy" id="use-latest-merchantid" type="button">Use Latest</button>
+                    <button class="copy" id="copy-merchantId-btn" type="button">Copy</button>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <label>status
+              <select name="status">
+                <option>pending</option>
+                <option>confirmed</option>
+                <option>failed</option>
+                <option>expired</option>
+              </select>
+            </label>
+
+            <label>payload (JSON)
+              <textarea name="payload">{"amount":100,"customerReference":"test"}</textarea>
+            </label>
+
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+              <button class="btn" id="send-webhook-btn" type="submit">Send Webhook</button>
+              <div class="muted">النتيجة ستُعرض أدناه</div>
+            </div>
+          </form>
+
+          <div id="webhook-result" class="result" style="margin-top:12px">لا توجد نتائج بعد.</div>
+        </section>
+
+        <!-- Merchant Dashboard -->
+        <section class="card">
+          <div class="section-title">
+            <strong>3) Merchant Dashboard</strong>
+            <span class="small">Protected endpoints: GET /api/payments/my, GET /api/webhooks/my</span>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <button class="btn" id="fetch-payments-btn" type="button">Fetch Payments</button>
+            <button class="btn" id="fetch-webhooks-btn" type="button">Fetch Webhook Logs</button>
+            <button class="copy" id="download-logs-btn" type="button">Download Logs</button>
+            <div class="muted">يجب تسجيل الدخول أولاً (Login Merchant)</div>
+          </div>
+
+          <!-- create-merchant-card moved to top of page -->
+
+          <div style="margin-top:8px">
+            <strong>Payments</strong>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+              <div class="small">عرض 10 عنصر / صفحة</div>
+              <div>
+                <button class="copy" id="payments-prev">Previous</button>
+                <span id="payments-pager-info" class="small">Page 1 of 1</span>
+                <button class="copy" id="payments-next">Next</button>
+              </div>
+            </div>
+            <div id="dashboard-payments" class="result" style="margin-top:8px">لا توجد نتائج بعد.</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <strong>Webhook Logs</strong>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+              <div class="small">عرض 10 عنصر / صفحة</div>
+              <div>
+                <button class="copy" id="webhooks-prev">Previous</button>
+                <span id="webhooks-pager-info" class="small">Page 1 of 1</span>
+                <button class="copy" id="webhooks-next">Next</button>
+              </div>
+            </div>
+            <div id="dashboard-webhooks" class="result" style="margin-top:8px">لا توجد نتائج بعد.</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <strong>Charts</strong>
+            <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div class="chart-box"><canvas class="chart-canvas" id="chart-payments-per-day"></canvas></div>
+                <div class="chart-box"><canvas class="chart-canvas" id="chart-success-fail"></canvas></div>
+                <div class="chart-box"><canvas class="chart-canvas" id="chart-webhooks-per-day"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- RIGHT: Logs -->
+      <aside>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <strong>Logs</strong>
+              <button class="copy" id="download-logs">Download Logs</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="copy" id="clear-logs">مسح</button>
+              <button class="copy" id="logout-btn" title="Logout">تسجيل الخروج</button>
+              <button class="copy" id="theme-toggle" title="Toggle Dark Mode">🌓</button>
+            </div>
+          </div>
+          <div class="logs" id="logs" aria-live="polite"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <strong>Notes</strong>
+          <p class="small" style="margin-top:8px">- تستخدم fetch() فقط للتواصل مع الـ API على <code>http://localhost:3000</code>.<br>- لا تعتمد أي مكتبات خارجية — صفحة HTML واحدة فقط.</p>
+        </div>
+      </aside>
+    </div>
+
+
+    <script src="utils.js"></script>
+    <script src="theme.js"></script>
+    <script src="auth.js"></script>
+    <script src="payments.js"></script>
+    <script src="webhooks.js"></script>
+    <script src="nol.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

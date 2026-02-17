@@ -1,0 +1,40 @@
+{
+    "name": "crypto-payment-gateway-backend",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build --config vite.config.server.ts",
+        "start": "node dist/server/node-build.mjs",
+        "dev": "cross-env PORT=3000 tsx server/run.ts",
+        "migrate:dev": "prisma migrate dev --name init",
+        "migrate:deploy": "prisma migrate deploy",
+        "prisma:generate": "prisma generate",
+        "test": "vitest --run",
+        "format.fix": "prettier --write .",
+        "typecheck": "tsc"
+    },
+    "dependencies": {
+        "@prisma/client": "^5.22.0",
+        "dotenv": "^17.2.1",
+        "express": "^5.1.0",
+        "pg": "^8.18.0",
+        "prisma": "^5.22.0",
+        "zod": "^3.25.76",
+        "helmet": "^7.0.0",
+        "express-rate-limit": "^6.8.0",
+        "pino": "^8.20.0",
+        "pino-pretty": "^9.2.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.3",
+        "@types/node": "^24.2.1",
+        "cors": "^2.8.5",
+        "cross-env": "^7.0.3",
+        "prettier": "^3.6.2",
+        "tsx": "^4.20.3",
+        "typescript": "^5.9.2",
+        "vite": "^7.1.2",
+        "vitest": "^3.2.4"
+    }
+}

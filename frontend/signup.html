@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Merchant Signup — Crypto Payment Gateway</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Inter, sans-serif;
+        background: #f1f5f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      .card {
+        background: white;
+        padding: 28px;
+        border-radius: 14px;
+        width: 360px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        border: 1px solid #e2e8f0;
+      }
+      h1 { margin: 0 0 18px; font-size: 20px; text-align: center; }
+      label { display:block; margin-bottom:12px; font-size:14px }
+      input { width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px }
+      .btn { width:100%; padding:10px; background:#0ea5a6; color:white; border:none; border-radius:8px; font-size:15px; cursor:pointer; margin-top:10px }
+      .btn:disabled{ opacity:0.6 }
+      .error{ margin-top:12px; color:#dc2626; font-size:13px; text-align:center }
+      .success{ margin-top:12px; color:#16a34a; font-size:13px; text-align:center }
+      .small{ margin-top:16px; text-align:center; font-size:13px; color:#64748b }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+
+      <h1>إنشاء حساب جديد</h1>
+
+      <label>
+        البريد الإلكتروني
+        <input id="email" type="email" placeholder="merchant@example.com" />
+      </label>
+
+      <label>
+        كلمة المرور
+        <input id="password" type="password" placeholder="a-strong-password" />
+      </label>
+
+      <button class="btn" id="signup-btn">Create Account</button>
+
+      <div id="msg"></div>
+
+      <div class="small">
+        لديك حساب؟ <a href="login.html">تسجيل الدخول</a>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = 'http://localhost:3000';
+      const emailEl = document.getElementById('email');
+      const passEl = document.getElementById('password');
+      const btn = document.getElementById('signup-btn');
+      const msg = document.getElementById('msg');
+
+      function showMessage(text, type='error') {
+        msg.className = type;
+        msg.textContent = text;
+      }
+
+      btn.addEventListener('click', async () => {
+        const email = emailEl.value.trim();
+        const password = passEl.value.trim();
+
+        if (!email || password.length < 8) {
+          return showMessage('يرجى تعبئة الحقول بالشكل الصحيح');
+        }
+
+        btn.disabled = true;
+        showMessage('');
+
+        try {
+          // backend requires a name field — generate from email local-part
+          const generatedName = (email.split('@')[0] || 'merchant').replace(/[^a-zA-Z0-9_-]/g, '_');
+          const res = await fetch(API_BASE + '/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: generatedName, email, password })
+          });
+
+          const json = await res.json();
+
+          if (!res.ok) {
+            showMessage(json.error || 'فشل إنشاء التاجر');
+            btn.disabled = false;
+            return;
+          }
+
+          // on successful signup attempt to login to obtain token
+          try {
+            const loginRes = await fetch(API_BASE + '/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            const loginJson = await loginRes.json();
+            if (!loginRes.ok) {
+              showMessage('تم الإنشاء، لكن فشل تسجيل الدخول التلقائي. الرجاء تسجيل الدخول يدوياً.');
+              btn.disabled = false;
+              return;
+            }
+
+            // save session to localStorage (only token). Dashboard will create merchant if needed.
+            localStorage.setItem('merchantSession', JSON.stringify({ token: loginJson.token }));
+
+            showMessage('تم الإنشاء وتسجيل الدخول بنجاح', 'success');
+            setTimeout(() => { window.location.href = 'index.html'; }, 600);
+          } catch (e) {
+            showMessage('تم الإنشاء، لكن حدث خطأ في تسجيل الدخول التلقائي');
+            btn.disabled = false;
+          }
+
+        } catch (err) {
+          showMessage('خطأ في الاتصال بالخادم');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
